@@ -1,5 +1,7 @@
 import requests
 import unittest
+import random
+import string
 
 class TestHHApiFunctionalPositive(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -42,7 +44,7 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
         phrase_for_search = "директор магазина"
         vacancies = self._get_vacancies('"{}"'.format(phrase_for_search))
         for vacancy in self._get_list_of_str_vacancies(vacancies):
-            self.assertRegex(str(vacancy).lower(), 'директор.{0,2}\sмагазин.{0,2}')
+            self.assertRegex(str(vacancy).lower(), r'директор.{0,2}\sмагазин.{0,2}')
 
 
     def test_search_of_different_forms_of_the_term(self):
@@ -61,9 +63,90 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
         for vacancy in self._get_list_of_str_vacancies(vacancies):
             self.assertRegex(vacancy, 'гео*')
 
+    def test_search_synonymus_of_term(self):
+        vacancies = self._get_vacancies('пиарщик')
+        vacancies_with_syn = [
+            item for item in self._get_list_of_str_vacancies(vacancies)
+                if 'пирщик' not in item
+        ]
+        self.assertTrue(any('pr-менеджер' in item for item in vacancies_with_syn))
+
+    def test_search_for_one_of_the_words_if_with_OR(self):
+        vacancies = self._get_vacancies('столяр OR плотник')
+        for vacancy in self._get_list_of_str_vacancies(vacancies):
+            self.assertTrue('столяр' in vacancy or 'плотник' in vacancy)
 
 
+    def test_search_of_all_words_with_AND(self):
+        first_term = "холодильное оборудование"
+        second_term = "торговое оборудование"
+        vacancies = self._get_vacancies('"{}" AND "{}"'.format(
+            first_term,
+            second_term
+        ))
+        for vacancy in self._get_list_of_str_vacancies(vacancies):
+            self.assertRegex(vacancy, r'холодильн.{2,4}\s*оборудовани.{1,3}')
+            self.assertRegex(vacancy, r'торгов.* оборудовани.{1,3}')
 
+    def test_exclude_term_from_search(self):
+        first_term, second_term, third_term = 'столяр', 'плотник', 'электрик'
+        vacancies = self._get_vacancies('{} NOT {} NOT {}'.format(
+            first_term, second_term, third_term
+        ))
+        for vacancy in self._get_list_of_str_vacancies(vacancies):
+            self.assertIn(first_term, vacancy)
+            self.assertNotIn(second_term, vacancy)
+            self.assertNotIn(third_term, vacancy)
+
+    def test_join_conditions_with_parentheses(self):
+        first, second = 'столяр', 'столяр-плотник'
+        third, fourth = 'электрик', 'сантехник'
+        search_query = '({} OR {}) AND ({} OR {})'.format(
+            first, second, third, fourth
+        )
+        vacancies = self._get_vacancies(search_query)
+        for vacancy in self._get_list_of_str_vacancies(vacancies):
+            self.assertTrue(any(item in vacancy for item in (first, second)))
+            self.assertTrue(any(item in vacancy for item in (third, fourth)))
+
+    def test_serarh_in_fields(self):
+        vacancies = self._get_vacancies(
+            'NAME:(python OR java) and COMPANY_NAME:HeadHunter'
+        )
+        for vacancy in vacancies:
+            self.assertTrue(
+                any(item in vacancy['name'].lower()
+                    for item in ('python', 'java'))
+            )
+            self.assertIn('HeadHunter', vacancy['employer']['name'])
+
+class TestHHApiFunctionalSecurity(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestHHApiFunctionalSecurity, self).__init__(*args, **kwargs)
+        self.url = "https://api.hh.ru/vacancies"
+
+    def test_sql_injection(self):
+        response = requests.get(self.url, params={'text':
+            "столяр+UNION+SELECT+*+FROM+accounts"
+        })
+        self.assertEqual(response.status_code, 200)
+        vacancies_found = response.json()['found']
+        self.assertEqual(vacancies_found, 0)
+
+    def test_html_injection(self):
+        response = requests.get(self.url, params={'text':
+            "<h1>Hello World</h1>"})
+        self.assertEqual(response.status_code, 200)
+        vacancies_found = response.json()['found']
+        self.assertEqual(vacancies_found, 0)
+        self.assertNotIn('<h1>Hello World</h1>', response.text)
+
+    def test_huge_input(self):
+        response = requests.get(self.url, params={'text':
+            ''.join(random.choice(string.printable) for _ in range(10**6))
+        })
+        self.assertEqual(response.status_code, 414)
 
 
 
