@@ -3,6 +3,8 @@ import requests
 import string
 import unittest
 
+from multiprocessing.dummy import Pool as ThreadPool
+
 
 class TestHHApiFunctional(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -176,6 +178,16 @@ class TestHHApiFunctionalNegative(TestHHApiFunctional):
             'NAMES:(python OR java) and COMPANY_NAMES:HeadHunter'
         )
         self.assertEqual(len(vacancies), 0)
+
+
+class TestHHApiNonFunctionalPerformance(unittest.TestCase):
+
+    def test_load(self):
+        args = ('https://api.hh.ru/vacancies',) * 500
+        pool = ThreadPool(200)
+        results = pool.map(requests.get, args)
+        for result in results:
+            self.assertTrue(result.status_code in (200, 429))
 
 
 if __name__ == '__main__':
