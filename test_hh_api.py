@@ -77,7 +77,7 @@ class TestHHApiFunctionalPositive(TestHHApiFunctional):
         vacancies = self._get_vacancies('пиарщик')
         vacancies_with_syn = [
             item for item in self._get_list_of_str_vacancies(vacancies)
-                if 'пирщик' not in item
+                if 'пиaрщик' not in item
         ]
         self.assertTrue(any('pr-менеджер' in item
             for item in vacancies_with_syn))
@@ -119,7 +119,7 @@ class TestHHApiFunctionalPositive(TestHHApiFunctional):
             self.assertTrue(any(item in vacancy for item in (first, second)))
             self.assertTrue(any(item in vacancy for item in (third, fourth)))
 
-    def test_serarh_in_fields(self):
+    def test_search_in_fields(self):
         vacancies = self._get_vacancies(
             'NAME:(python OR java) and COMPANY_NAME:HeadHunter'
         )
