@@ -1,15 +1,16 @@
-import requests
-import unittest
 import random
+import requests
 import string
+import unittest
 
-class TestHHApiFunctionalPositive(unittest.TestCase):
+
+class TestHHApiFunctional(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestHHApiFunctionalPositive, self).__init__(*args, **kwargs)
+        super(TestHHApiFunctional, self).__init__(*args, **kwargs)
         self.url = "https://api.hh.ru/vacancies"
 
     def _get_vacancies(self, params):
-        response =  requests.get(self.url, params={'text': params})
+        response = requests.get(self.url, params={'text': params})
         return response.json()['items']
 
     def _get_list_of_str_vacancies(self, vacancies):
@@ -21,6 +22,11 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
                 vacancy = vacancy.replace(word, '')
             result.append(vacancy)
         return result
+
+
+class TestHHApiFunctionalPositive(TestHHApiFunctional):
+    def __init__(self, *args, **kwargs):
+        super(TestHHApiFunctionalPositive, self).__init__(*args, **kwargs)
 
     def test_smoke(self):
         response = requests.get(self.url)
@@ -44,8 +50,10 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
         phrase_for_search = "директор магазина"
         vacancies = self._get_vacancies('"{}"'.format(phrase_for_search))
         for vacancy in self._get_list_of_str_vacancies(vacancies):
-            self.assertRegex(str(vacancy).lower(), r'директор.{0,2}\sмагазин.{0,2}')
-
+            self.assertRegex(
+                str(vacancy).lower(),
+                r'директор.{0,2}\sмагазин.{0,2}'
+            )
 
     def test_search_of_different_forms_of_the_term(self):
         vacancies = self._get_vacancies('продажи')
@@ -69,13 +77,13 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
             item for item in self._get_list_of_str_vacancies(vacancies)
                 if 'пирщик' not in item
         ]
-        self.assertTrue(any('pr-менеджер' in item for item in vacancies_with_syn))
+        self.assertTrue(any('pr-менеджер' in item
+            for item in vacancies_with_syn))
 
     def test_search_for_one_of_the_words_if_with_OR(self):
         vacancies = self._get_vacancies('столяр OR плотник')
         for vacancy in self._get_list_of_str_vacancies(vacancies):
             self.assertTrue('столяр' in vacancy or 'плотник' in vacancy)
-
 
     def test_search_of_all_words_with_AND(self):
         first_term = "холодильное оборудование"
@@ -120,6 +128,7 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
             )
             self.assertIn('HeadHunter', vacancy['employer']['name'])
 
+
 class TestHHApiFunctionalSecurity(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -135,8 +144,12 @@ class TestHHApiFunctionalSecurity(unittest.TestCase):
         self.assertEqual(vacancies_found, 0)
 
     def test_html_injection(self):
-        response = requests.get(self.url, params={'text':
-            "<h1>Hello World</h1>"})
+        response = requests.get(
+            self.url,
+            params={'text':
+            "<h1>Hello World</h1>"
+            }
+        )
         self.assertEqual(response.status_code, 200)
         vacancies_found = response.json()['found']
         self.assertEqual(vacancies_found, 0)
@@ -149,6 +162,20 @@ class TestHHApiFunctionalSecurity(unittest.TestCase):
         self.assertEqual(response.status_code, 414)
 
 
+class TestHHApiFunctionalNegative(TestHHApiFunctional):
+    def __init__(self, *args, **kwargs):
+        super(TestHHApiFunctionalNegative, self).__init__(*args, **kwargs)
+
+    def test_incorrect_input_returns_no_vacancies(self):
+        word_for_search = 'абрашвабракадабра'
+        vacancies = self._get_vacancies(word_for_search)
+        self.assertEqual(len(vacancies), 0)
+
+    def test_incorrect_fields_names_returns_no_vacancies(self):
+        vacancies = self._get_vacancies(
+            'NAMES:(python OR java) and COMPANY_NAMES:HeadHunter'
+        )
+        self.assertEqual(len(vacancies), 0)
 
 
 if __name__ == '__main__':
