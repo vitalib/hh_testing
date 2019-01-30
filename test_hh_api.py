@@ -10,6 +10,18 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
         response =  requests.get(self.url, params={'text': params})
         return response.json()['items']
 
+    def _get_list_of_str_vacancies(self, vacancies):
+        result = []
+        words_for_removal = ['<hihighlighttext>', '</highlighttext>']
+        for vacancy in vacancies:
+            vacancy = str(vacancy).lower()
+            for word in words_for_removal:
+                vacancy = vacancy.replace(word, '')
+            result.append(vacancy)
+        return result
+
+
+
     def test_smoke(self):
         response = requests.get(self.url)
         self.assertEqual(response.status_code, requests.status_codes.codes.ok)
@@ -50,8 +62,7 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
 
     def test_search_only_particular_form_phrase(self):
         vacancies = self._get_vacancies('!"ценные бумаги"')
-        print(vacancies)
-        for vacancy in vacancies:
+        for vacancy in self._get_list_of_str_vacancies(vacancies):
             vacancy = str(vacancy).lower()
             self.assertIn("ценные бумаги", vacancy)
 
