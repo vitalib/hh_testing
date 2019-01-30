@@ -36,9 +36,26 @@ class TestHHApiFunctionalPositive(unittest.TestCase):
             self.assertRegex(str(vacancy).lower(), 'директор.{0,2}\sмагазин.{0,2}')
 
     def test_search_of_different_forms_of_the_term(self):
-        phrase_for_search = 'продажи'
-        possible_forms = ('продажей', 'продажа', 'продаж')
-        vacancies = self._get_vacancies(phrase_for_search)
+        vacancies = self._get_vacancies('продажи')
+        for vacancy in vacancies:
+            vacancy = str(vacancy).lower()
+            if 'продажи' not in vacancy:
+                self.assertIn('продаж', vacancy)
+
+    def test_search_only_particular_form(self):
+        vacancies = self._get_vacancies('!продажи')
+        for vacancy in vacancies:
+            vacancy = str(vacancy).lower()
+            self.assertIn('продажи', vacancy)
+
+    def test_search_only_particular_form_phrase(self):
+        vacancies = self._get_vacancies('!"ценные бумаги"')
+        print(vacancies)
+        for vacancy in vacancies:
+            vacancy = str(vacancy).lower()
+            self.assertIn("ценные бумаги", vacancy)
+
+
 
 
 
